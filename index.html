@@ -1,0 +1,321 @@
+<html>
+
+<head>
+  <title>3D都市モデル PLATEAU-VIEW（3DTiles）</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet">
+  <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+  <script src="https://unpkg.com/@loaders.gl/3d-tiles@^2.3.0/dist/dist.min.js"></script>
+  <style>
+    html,
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .deck-tooltip {
+      font-family: Helvetica, Arial, sans-serif;
+      padding: 6px !important;
+      margin: 8px;
+      max-width: 300px;
+      font-size: 20px;
+    }
+
+    #control-panel {
+      /*background-color: #fff;*/
+      background-color: rgba(255, 255, 255, 0.9);
+      border-radius: 3px;
+      bottom: 20px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.10);
+      font: 12px/14px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+      padding: 10px;
+      position: absolute;
+      left: 10px;
+      z-index: 1;
+      line-height: 10px;
+      height: auto;
+    }
+
+    #plateau-3dtiles {
+      padding: 3px 4px;
+      font: 12px/14px Arial, Helvetica, sans-serif;
+      color: black;
+      background: white;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+      border-radius: 5px;
+      width: fit-content;
+      position: absolute;
+      top: 5px;
+      z-index: 10;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+  <!--
+  <div id="control-panel">
+    <p><b>lights</b></p><br>
+    <div class="input">
+      <label>ambientLight</label>
+      <input id="ambientLight" type="range" min="0" max="10" step="0.1" value="3.0"></input>
+      <span id="ambientLight-value"></span>
+    </div>
+    <div class="input">
+      <label>directionalLight</label>
+      <input id="directionalLight" type="range" min="0" max="20" step="0.1" value="9.0"></input>
+      <span id="directionalLight-value"></span>
+    </div>
+  </div>
+  -->
+  <div id="plateau-3dtiles">
+    <label><b>データセット名<br>(テクスチャ付き(低解像度)またはテクスチャなし)</b></label><br>
+    <select id="3dtiles" onchange="Select3DTiles()">
+      <option value="13100_tokyo/13101_chiyoda-ku/low_resolution">建物モデル（東京都千代田区）</option>
+      <option value="13100_tokyo/13102_chuo-ku/low_resolution">建物モデル（東京都中央区）</option>
+      <option value="13100_tokyo/13103_minato-ku/low_resolution">建物モデル（東京都港区）</option>
+      <option value="13100_tokyo/13104_shinjuku-ku/low_resolution">建物モデル（東京都新宿区）</option>
+      <option value="13100_tokyo/13105_bunkyo-ku/notexture">建物モデル（東京都文京区）</option>
+      <option value="13100_tokyo/13106_taito-ku/notexture">建物モデル（東京都台東区）</option>
+      <option value="13100_tokyo/13107_sumida-ku/notexture">建物モデル（東京都墨田区）</option>
+      <option value="13100_tokyo/13108_koto-ku/low_resolution">建物モデル（東京都江東区）</option>
+      <option value="13100_tokyo/13109_shinagawa-ku/low_resolution">建物モデル（東京都品川区）</option>
+      <option value="13100_tokyo/13110_meguro-ku/notexture">建物モデル（東京都目黒区）</option>
+      <option value="13100_tokyo/13111_ota-ku/low_resolution">建物モデル（東京都大田区）</option>
+      <option value="13100_tokyo/13112_setagaya-ku/notexture">建物モデル（東京都世田谷区）</option>
+      <option value="13100_tokyo/13113_shibuya-ku/low_resolution">建物モデル（東京都渋谷区）</option>
+      <option value="13100_tokyo/13114_nakano-ku/notexture">建物モデル（東京都中野区）</option>
+      <option value="13100_tokyo/13115_suginami-ku/notexture">建物モデル（東京都杉並区）</option>
+      <option value="13100_tokyo/13116_toshima-ku/low_resolution">建物モデル（東京都豊島区）</option>
+      <option value="13100_tokyo/13117_kita-ku/notexture">建物モデル（東京都北区）</option>
+      <option value="13100_tokyo/13118_arakawa-ku/notexture">建物モデル（東京都荒川区）</option>
+      <option value="13100_tokyo/13119_itabashi-ku/notexture">建物モデル（東京都板橋区）</option>
+      <option value="13100_tokyo/13120_nerima-ku/notexture">建物モデル（東京都練馬区）</option>
+      <option value="13100_tokyo/13121_adachi-ku/notexture">建物モデル（東京都足立区）</option>
+      <option value="13100_tokyo/13122_katsushika-ku/notexture">建物モデル（東京都葛飾区）</option>
+      <option value="13100_tokyo/13123_edogawa-ku/notexture">建物モデル（東京都江戸川区）</option>
+    </select>
+  </div>
+  <div id="tooltip"></div>
+  <script type="text/javascript">
+
+    // basic MapLibre map
+    const map = new maplibregl.Map({
+      // container: 'map',
+      container: document.body,
+      style: './std.json',
+      // style: 'https://tile2.openstreetmap.jp/styles/osm-bright/style.json',
+      hash: true,
+      zoom: 16,
+      maxZoom: 23,
+      minZoom: 4,
+      center: [139.7660988, 35.6808658],
+      pitch: 60,
+      bearing: 50,
+      hash: true,
+      // 既存Attributionを非表示
+      attributionControl: false,
+    })
+
+    // ズーム・回転
+    map.addControl(new maplibregl.NavigationControl());
+
+    // フルスクリーンモードのオンオフ
+    map.addControl(new maplibregl.FullscreenControl());
+
+    // 現在位置表示
+    map.addControl(new maplibregl.GeolocateControl({
+      positionOptions: {
+        enableHighAccuracy: false
+      },
+      fitBoundsOptions: { maxZoom: 18 },
+      trackUserLocation: true,
+      showUserLocation: true
+    }));
+
+    // スケール表示
+    map.addControl(new maplibregl.ScaleControl({
+      maxWidth: 200,
+      unit: 'metric'
+    }));
+
+    // Attributionを折りたたみ表示
+    map.addControl(new maplibregl.AttributionControl({
+      compact: true,
+      // カスタムAttributionを表示
+      customAttribution: "<a href='https://github.com/Project-PLATEAU/plateau-streaming-tutorial' target='_blank'>PLATEAU配信サービス（試験運用）</a>"
+    }));
+
+    map.on('load', () => {
+
+      // 航空写真オルソ画像タイルデータ
+      map.addSource('plateau-ortho', {
+        type: 'raster',
+        tiles: [
+          'https://gic-plateau.s3.ap-northeast-1.amazonaws.com/2020/ortho/tiles/{z}/{x}/{y}.png'
+        ],
+        maxzoom: 19,
+        minzoom: 10
+        //attribution: '<a href="https://www.mlit.go.jp/plateau/">国土交通省Project PLATEAU</a>'
+      });
+      map.addLayer({
+        id: 'plateau-ortho',
+        type: 'raster',
+        source: 'plateau-ortho'
+      });
+
+      // 不透明度の初期表示
+      map.setPaintProperty(
+        'plateau-ortho',
+        'raster-opacity',
+        0.5
+      );
+
+      const { MapboxLayer, Tile3DLayer } = deck;
+
+      // 建築物モデル3DTilesデータ
+      const tile3dLayer = new MapboxLayer({
+        id: '13100_tokyo/13101_chiyoda-ku/low_resolution',
+        type: Tile3DLayer,
+        pointSize: 1,
+        data: 'https://plateau.geospatial.jp/main/data/3d-tiles/bldg/13100_tokyo/13101_chiyoda-ku/low_resolution/tileset.json', // 千代田区
+        //data: 'https://assets.cms.plateau.reearth.io/assets/14/b8f886-921d-46d3-9fd4-4f6e568b27d4/13100_tokyo23-ku_2022_3dtiles%20_1_1_op_bldg_13101_chiyoda-ku_lod2/tileset.json', // 千代田区
+        loader: Tiles3DLoader,
+        opacity: 1,
+        pickable: true,
+        // 【参考】https://github.com/nagix/mt3d-plugin-plateau
+        onTileLoad: d => {
+          const { content } = d;
+          const buffer = content.batchTableBinary.buffer;
+          const key = content.batchTableJson;
+          const len = key._gml_id.length;
+          const zMinView = new DataView(buffer, key._zmin.byteOffset, len * 8);
+          const zMins = [];
+
+          for (let i = 0; i < len; i++) {
+            zMins.push(zMinView.getFloat64(i * 8, true));
+          }
+          zMins.sort((a, b) => a - b);
+          content.cartographicOrigin.z -= 36.6638 + zMins[Math.floor(len / 2)];
+        }
+      });
+
+      map.addLayer(tile3dLayer);
+
+    })
+
+    // マップの中心座標とジオイド高を設定
+    function getGeoid(geoidText) {
+      const geoidTable = {
+        // キー：市区町村、値：経度、緯度、ジオイド高
+        '13100_tokyo/13101_chiyoda-ku/low_resolution': [139.767124, 35.6812362, 36.6625],    // 東京駅
+        '13100_tokyo/13102_chuo-ku/low_resolution': [139.7719937, 35.6706329, 36.5701],      // 中央区役所
+        '13100_tokyo/13103_minato-ku/low_resolution': [139.7454329, 35.6585805, 36.5945],    // 東京タワー
+        '13100_tokyo/13104_shinjuku-ku/low_resolution': [139.7005713, 35.6896067, 36.9702],  // 新宿駅
+        '13100_tokyo/13105_bunkyo-ku/notexture': [139.752123, 35.7141672, 36.9109],          // 文京区役所
+        '13100_tokyo/13106_taito-ku/notexture': [139.7774091, 35.7126028, 36.8696],          // 上野駅
+        '13100_tokyo/13107_sumida-ku/notexture': [139.8015587, 35.7107439, 36.7613],         // 墨田区役所
+        '13100_tokyo/13108_koto-ku/low_resolution': [139.8171444, 35.6727064, 36.4153],      // 江東区役所
+        '13100_tokyo/13109_shinagawa-ku/low_resolution': [139.7302787, 35.6092319, 36.3762], // 品川区役所
+        '13100_tokyo/13110_meguro-ku/notexture': [139.6981511, 35.6413604, 36.6895],         // 目黒区役所
+        '13100_tokyo/13111_ota-ku/low_resolution': [139.7159873, 35.5612596, 36.2170],       // 大田区役所
+        '13100_tokyo/13112_setagaya-ku/notexture': [139.6533184, 35.6465808, 36.9144],       // 世田谷区役所
+        '13100_tokyo/13113_shibuya-ku/low_resolution': [139.7016358, 35.6580339, 36.7707],   // 渋谷駅
+        '13100_tokyo/13114_nakano-ku/notexture': [139.6637765, 35.7072627, 37.2320],         // 中野区役所
+        '13100_tokyo/13115_suginami-ku/notexture': [139.636372, 35.69955, 37.2982],          // 杉並区役所
+        '13100_tokyo/13116_toshima-ku/low_resolution': [139.7109001, 35.7295028, 37.2118],   // 池袋駅
+        '13100_tokyo/13117_kita-ku/notexture': [139.7339227, 35.7529398, 37.3124],           // 北区役所
+        '13100_tokyo/13118_arakawa-ku/notexture': [139.7831713, 35.735981, 37.0205],         // 荒川区役所
+        '13100_tokyo/13119_itabashi-ku/notexture': [139.7094921, 35.7511525, 37.3804],       // 板橋区役所
+        '13100_tokyo/13120_nerima-ku/notexture': [139.6517759, 35.7357846, 37.4787],         // 練馬区役所
+        '13100_tokyo/13121_adachi-ku/notexture': [139.8044243, 35.7750057, 37.2782],         // 足立区役所
+        '13100_tokyo/13122_katsushika-ku/notexture': [139.8472061, 35.7434901, 36.8790],     // 葛飾区役所
+        '13100_tokyo/13123_edogawa-ku/notexture': [139.868427, 35.706665, 36.4935],          // 江戸川区役所
+      };
+      return geoidTable[geoidText];
+    }
+
+    // 3DTiles切り替え表示
+    function Select3DTiles() {
+      var Base3DTilesName = document.getElementById('3dtiles').value;
+
+      // 一旦、レイヤ削除
+      map.removeLayer('13100_tokyo/13101_chiyoda-ku/low_resolution');
+      map.removeLayer('13100_tokyo/13102_chuo-ku/low_resolution');
+      map.removeLayer('13100_tokyo/13103_minato-ku/low_resolution');
+      map.removeLayer('13100_tokyo/13104_shinjuku-ku/low_resolution');
+      map.removeLayer('13100_tokyo/13105_bunkyo-ku/notexture');
+      map.removeLayer('13100_tokyo/13106_taito-ku/notexture');
+      map.removeLayer('13100_tokyo/13107_sumida-ku/notexture');
+      map.removeLayer('13100_tokyo/13108_koto-ku/low_resolution');
+      map.removeLayer('13100_tokyo/13109_shinagawa-ku/low_resolution');
+      map.removeLayer('13100_tokyo/13110_meguro-ku/notexture');
+      map.removeLayer('13100_tokyo/13111_ota-ku/low_resolution');
+      map.removeLayer('13100_tokyo/13112_setagaya-ku/notexture');
+      map.removeLayer('13100_tokyo/13113_shibuya-ku/low_resolution');
+      map.removeLayer('13100_tokyo/13114_nakano-ku/notexture');
+      map.removeLayer('13100_tokyo/13115_suginami-ku/notexture');
+      map.removeLayer('13100_tokyo/13116_toshima-ku/low_resolution');
+      map.removeLayer('13100_tokyo/13117_kita-ku/notexture');
+      map.removeLayer('13100_tokyo/13118_arakawa-ku/notexture');
+      map.removeLayer('13100_tokyo/13119_itabashi-ku/notexture');
+      map.removeLayer('13100_tokyo/13120_nerima-ku/notexture');
+      map.removeLayer('13100_tokyo/13121_adachi-ku/notexture');
+      map.removeLayer('13100_tokyo/13122_katsushika-ku/notexture');
+      map.removeLayer('13100_tokyo/13123_edogawa-ku/notexture');
+
+      // 市区町村名を引数として関数を呼び出し、返された値を変数に代入
+      const locationInfo = getGeoid(Base3DTilesName);
+
+      // 値を経度、緯度、ジオイド高にそれぞれ代入
+      const longitude = locationInfo[0];
+      const latitude = locationInfo[1];
+      const geoidHeight = locationInfo[2];
+
+      const { MapboxLayer, Tile3DLayer } = deck;
+
+      // 建築物モデル3DTilesデータ
+      const tile3dLayer = new MapboxLayer({
+        id: Base3DTilesName,
+        type: Tile3DLayer,
+        pointSize: 1,
+        data: 'https://plateau.geospatial.jp/main/data/3d-tiles/bldg/' + Base3DTilesName + '/tileset.json',
+        loader: Tiles3DLoader,
+        opacity: 1,
+        pickable: true,
+        // 【参考】https://github.com/nagix/mt3d-plugin-plateau
+        onTileLoad: d => {
+          const { content } = d;
+          const buffer = content.batchTableBinary.buffer;
+          const key = content.batchTableJson;
+          const len = key._gml_id.length;
+          const zMinView = new DataView(buffer, key._zmin.byteOffset, len * 8);
+          const zMins = [];
+
+          for (let i = 0; i < len; i++) {
+            zMins.push(zMinView.getFloat64(i * 8, true));
+          }
+          zMins.sort((a, b) => a - b);
+          content.cartographicOrigin.z -= geoidHeight + zMins[Math.floor(len / 2)];
+        }
+      });
+
+      // マップの中心座標へ遷移
+      map.flyTo({
+        center: [longitude, latitude]
+      });
+
+      // 建築物モデル3DTilesレイヤ追加
+      map.addLayer(tile3dLayer);
+
+    }
+
+  </script>
+</body>
+
+</html>
